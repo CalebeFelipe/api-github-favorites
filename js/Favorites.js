@@ -1,3 +1,5 @@
+import { GithubUser } from "./GithubUser.js"
+
 // classe que vai conter a lógica dos dados
 // como os dados serão estruturados
 export class Favorites {
@@ -6,17 +8,49 @@ export class Favorites {
         this.load()
     } 
 
+    
     load() {
         this.entries = JSON.parse(localStorage.getItem('@github-favorites:')) || []
-
+    }
     
+    save() {
+        localStorage.setItem('@github-favorites:', JSON.stringify(this.entries))
+    }
+    
+    async add(username) {
+        try {
+
+            const userExists = this.entries.find(entry => entry.login.toLowerCase() === username.toLowerCase())
+            const input = this.root.querySelector('.search input')
+
+            if(userExists) {
+                throw new Error('Usuário já cadastrado!')
+            }
+
+            const user = await GithubUser.search(username)
+
+            if(user.login === undefined) {
+                throw new Error('Usuário não encontrado')
+            }
+
+            //Imutabilidade
+            this.entries = [user, ...this.entries]
+            this.update()
+            this.save()
+            input.value = ""
+
+        } catch(error) {
+            alert(error.message)
+        }
+
     }
 
     delete(user) {
-        const filteredEntries = this.entries.filter((entry) => entry.login !== user.login)
+        const filteredEntries = this.entries.filter(entry => entry.login !== user.login)
 
         this.entries = filteredEntries
         this.update()
+        this.save()
     }
 
 }
@@ -28,6 +62,16 @@ export class FavoritesView extends Favorites {
         super(root)
         this.tbody = this.root.querySelector('table tbody')
         this.update()
+        this.onAdd()
+    }
+
+    onAdd() {
+        const addButton = this.root.querySelector('button.addButton')
+        addButton.onclick = () => {
+            const { value } = this.root.querySelector('.search input')
+
+            this.add(value)
+        }
     }
 
     update() {
